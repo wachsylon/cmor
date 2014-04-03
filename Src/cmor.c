@@ -2002,6 +2002,7 @@ else {
 	}
       }
     }
+	
     /* Figures out file name */
     if (CMOR_CREATE_SUBDIRECTORIES == 1) {
       isfixed = cmor_create_output_path(var_id,outname);
@@ -4204,10 +4205,8 @@ if(strcmp("lead_time",cmor_vars[i].id)!=0) {
     }
     if (cmor_tables[i].nforcings>0) {
       for (j=0;j<cmor_tables[i].nforcings;j++) {
-/*		if(strcmp(CMOR_PROJECT,"SPECS")!=0){*/
-			free(cmor_tables[i].forcings[i]);
-			cmor_tables[i].forcings[i]=NULL;
-/*		}*/
+        free(cmor_tables[i].forcings[j]);
+        cmor_tables[i].forcings[j]=NULL;
       }
       free(cmor_tables[i].forcings);
       cmor_tables[i].forcings=NULL;
