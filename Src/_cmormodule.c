@@ -115,13 +115,14 @@ static PyObject *
   int mode,ierr,netcdf,verbosity,createsub;
   char *path;
   char *logfile;
-  if (!PyArg_ParseTuple(args,"siiisi",&path,&netcdf,&verbosity,&mode,&logfile,&createsub))
+  char *CMOR_PROJECT;
+  if (!PyArg_ParseTuple(args,"siiisis",&path,&netcdf,&verbosity,&mode,&logfile,&createsub,&CMOR_PROJECT))
     return NULL;
   if (strcmp(logfile,"")==0) {
-    ierr = cmor_setup(path,&netcdf,&verbosity,&mode,NULL,&createsub);
+    ierr = cmor_setup(path,&netcdf,&verbosity,&mode,NULL,&createsub,&CMOR_PROJECT);
   }
   else {
-    ierr = cmor_setup(path,&netcdf,&verbosity,&mode,logfile,&createsub);
+    ierr = cmor_setup(path,&netcdf,&verbosity,&mode,logfile,&createsub,&CMOR_PROJECT);
   }
   if (ierr != 0 ) return NULL;
   /* Return NULL Python Object */
@@ -254,22 +255,34 @@ static PyObject *
   char *references; 	 
   char *model_id; 	 
   char *forcing; 
+  int initialization_method;
+  char *initialization_description;
+  int physics_version;
   char *institute_id;	 
-  char *parent_exp_id;	 
-  char *parent_exp_rip;	 
+  char *parent_experiment_id;	 
   int  leap_year; 
   int  leap_month; 
   int  *month_lengths;
-  int initialization_method;
-  int physics_version;
+  char *project_id; 
+  char *forecast_reference_time; 
+  char *associated_model;  
+  char *physics_description;
+  char *series;
+  char *parent_experiment_rip;	 
   int ierr;
   double *branch_time=NULL,bt;
   PyObject *month_lengths_obj;
   PyObject *branch_time_obj;
   PyArrayObject *month_lengths_array_obj=NULL;
 
-  if (!PyArg_ParseTuple(args,"sssssissssiiOssiissOs",&outpath,&experiment_id,&institution,&source,&calendar,&realization,&contact,&history,&comment,&references,&leap_year,&leap_month,&month_lengths_obj,&model_id,&forcing,&initialization_method,&physics_version,&institute_id,&parent_exp_id,&branch_time_obj,&parent_exp_rip))
+  if(strcmp(CMOR_PROJECT,"SPECS")==0) {
+    if (!PyArg_ParseTuple(args,"sssssissssiiOssisissOs",&outpath,&experiment_id,&institution,&source,&calendar,&realization,&contact,&history,&comment,&references,&leap_year,&leap_month,&month_lengths_obj,&model_id,&forcing,&initialization_method,&initialization_description,&physics_version,&institute_id,&parent_experiment_id,&branch_time_obj,&parent_experiment_rip,&forecast_reference_time,&physics_description,,&series,&associated_model))
     return NULL;
+  }
+  else {
+    if (!PyArg_ParseTuple(args,"sssssissssiiOssiissOs",&outpath,&experiment_id,&institution,&source,&calendar,&realization,&contact,&history,&comment,&references,&leap_year,&leap_month,&month_lengths_obj,&model_id,&forcing,&initialization_method,&physics_version,&institute_id,&parent_experiment_id,&branch_time_obj,&parent_experiment_rip,&forecast_reference_time,&physics_description,,&series,&associated_model))
+    return NULL;
+  }
   if (month_lengths_obj == Py_None) {
     month_lengths = NULL;
   }
@@ -285,7 +298,12 @@ static PyObject *
     branch_time = &bt;
   }
     
-  ierr = cmor_dataset(outpath,experiment_id,institution,source,calendar,realization,contact,history,comment,references,leap_year,leap_month,month_lengths,model_id,forcing,initialization_method,physics_version,institute_id,parent_exp_id,branch_time,parent_exp_rip);
+  if(strcmp(CMOR_PROJECT,"SPECS")==0) {
+    ierr = cmor_dataset(outpath,experiment_id,institution,source,calendar,realization,contact,history,comment,references,leap_year,leap_month,month_lengths,model_id,forcing,initialization_method,initialization_description,physics_version,institute_id,parent_experiment_id,project_id,branch_time,forecast_reference_time,associated_model,physics_description,series,parent_experiment_rip);
+  }
+  else {
+    ierr = cmor_dataset(outpath,experiment_id,institution,source,calendar,realization,contact,history,comment,references,leap_year,leap_month,month_lengths,model_id,forcing,initialization_method,NULL,physics_version,institute_id,parent_experiment_id,project_id,branch_time,forecast_reference_time,associated_model,physics_description,series,parent_experiment_rip);
+  }
   if (month_lengths_array_obj!=NULL) {Py_DECREF(month_lengths_array_obj);}
   if (ierr != 0 ) return NULL;
   /* Return NULL Python Object */
@@ -538,10 +556,10 @@ static PyObject *
   for(i=0;i<n;i++) {
     tmp  =PyList_GetItem(param_nm_obj,i);
     strcpy(nms[i],PyString_AsString(tmp));
-    //Py_DECREF(tmp); //Not needed get_item does not increase ref
+ /*   Py_DECREF(tmp);  Not needed get_item does not increase ref*/
     tmp  =PyList_GetItem(param_un_obj,i);
     strcpy(units[i],PyString_AsString(tmp));
-    //Py_DECREF(tmp); // Not need get_item does not incref
+ /*   Py_DECREF(tmp);  Not needed get_item does not increase ref*/
   }
   
   ierr = cmor_set_grid_mapping(gid,name,n,(char **)nms,CMOR_MAX_STRING,param_val,(char **)units,CMOR_MAX_STRING);
@@ -560,7 +578,7 @@ static PyObject *
 static PyObject *
   PyCMOR_write(PyObject *self,PyObject *args)
 {
-  int ierr,var_id;
+  int ierr,var_id,ncid_in;
   PyObject *data_obj=NULL;
   PyArrayObject *data_array=NULL;
   void *data;
@@ -570,6 +588,9 @@ static PyObject *
   PyObject *times_obj=NULL;
   PyArrayObject *times_array=NULL;
   void *times;
+  PyObject *leadtimes_obj=NULL;
+  PyArrayObject *leadtimes_array=NULL;
+  void *leadtimes;
   double itime;
   PyObject *times_bnds_obj=NULL;
   PyArrayObject *times_bnds_array=NULL;
@@ -579,12 +600,35 @@ static PyObject *
   int iref;
 
   /* HUGE assumtion here is that the data is contiguous! */
-  if (!PyArg_ParseTuple(args,"iOssiOOO",&var_id,&data_obj,&itype,&suffix,&ntimes,&times_obj,&times_bnds_obj,&ref_obj))
+  
+  if(strcmp(CMOR_PROJECT,"SPECS")==0) {
+    if (!PyArg_ParseTuple(args,"iOssiOOOO",&var_id,&data_obj,&itype,&suffix,&ntimes,&times_obj,&leadtimes_obj,&times_bnds_obj,&ref_obj))
+      return NULL;
+  }
+  else {
+    if (!PyArg_ParseTuple(args,"iOssiOOO",&var_id,&data_obj,&itype,&suffix,&ntimes,&times_obj,&times_bnds_obj,&ref_obj))
     return NULL;
-
+  }
   data_array =(PyArrayObject *) PyArray_ContiguousFromObject(data_obj,PyArray_NOTYPE,1,0);
   data = data_array->data;
 
+
+  if(strcmp(CMOR_PROJECT,"SPECS")==0) {
+    if (leadtimes_obj == Py_None) {
+      leadtimes = NULL;
+    }
+    else {
+      if (ntimes>1) {
+        leadtimes_array =(PyArrayObject *) PyArray_ContiguousFromObject(leadtimes_obj,PyArray_NOTYPE,1,0);
+        leadtimes = (void *)leadtimes_array->data;
+      }
+      else {
+        itime = (double) PyFloat_AsDouble(leadtimes_obj);
+        leadtimes = &itime;
+      }
+    }
+  }
+ 
   if (times_obj == Py_None) {
     times = NULL;
   }
@@ -617,14 +661,22 @@ static PyObject *
   type = itype[0];
 /*   printf("going in, suffix is: -%s-\n",suffix); */
   ierr = 0;
-  ierr = cmor_write(var_id, data, type, suffix, ntimes, times, times_bnds, ref);
+  if(strcmp(CMOR_PROJECT,"SPECS")==0) {
+    ierr = cmor_write(var_id, ncid_in, data, type, suffix, ntimes, times, leadtimes, times_bnds, ref);
+  }
+  else {
+    ierr = cmor_write(var_id, ncid_in, data, type, suffix, ntimes, times, times_bnds, ref);
+  }
   Py_DECREF(data_array);
   if (times_array!=NULL) {Py_DECREF(times_array);}
+  if(strcmp(CMOR_PROJECT,"SPECS")==0) {
+    if (leadtimes_array!=NULL) {Py_DECREF(leadtimes_array);}
+  }
   if (times_bnds_array!=NULL) {Py_DECREF(times_bnds_array);}
 
   if (ierr != 0 ) return NULL;
   /* Return NULL Python Object */
- 
+   
   Py_INCREF(Py_None);
   return Py_None;
 }

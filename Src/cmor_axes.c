@@ -289,8 +289,10 @@ int cmor_check_values_inside_bounds(double *values,double *bounds, int length, c
   for (i=0;i<length;i++) {
     /* printf("check within: %i: %lf < %lf < %lf ???\n",i,bounds[2*i],values[i],bounds[2*i+1]); */
     if ( ((bounds[2*i]<values[i]) && (bounds[2*i+1]<values[i])) || ((bounds[2*i]>values[i]) && (bounds[2*i+1]>values[i])) ) {
-      snprintf(msg,CMOR_MAX_STRING,"axis %s has values not within bounds at indice: %i: %lf not within: %lf, %lf",name,i,values[i],bounds[2*i],bounds[2*i+1]);
-      cmor_handle_error(msg,CMOR_CRITICAL);
+        if(strcmp(CMOR_PROJECT,"SPECS")!=0){
+            snprintf(msg,CMOR_MAX_STRING,"axis %s has values not within bounds at indice: %i: %lf not within: %lf, %lf",name,i,values[i],bounds[2*i],bounds[2*i+1]);
+            cmor_handle_error(msg,CMOR_CRITICAL);
+        }
     }
   }
   cmor_pop_traceback();
@@ -323,9 +325,11 @@ int cmor_check_monotonic(double *values,int length, char *name,int isbounds, int
 	  treatlon=1;
 	}
 	else {
-	  snprintf(msg,CMOR_MAX_STRING,"axis %s (table: %s) has non monotonic bounds values : %lf, %lf, %lf",name,cmor_tables[cmor_axes[axis_id].ref_table_id].table_id,values[2*i],values[2*i+2],values[2*i+4]);
-	cmor_handle_error(msg,CMOR_CRITICAL);
-	}
+      if(strcmp(CMOR_PROJECT,"SPECS")!=0){
+          snprintf(msg,CMOR_MAX_STRING,"axis %s (table: %s) has non monotonic bounds values : %lf, %lf, %lf",name,cmor_tables[cmor_axes[axis_id].ref_table_id].table_id,values[2*i],values[2*i+2],values[2*i+4]);
+        cmor_handle_error(msg,CMOR_CRITICAL);
+         }/*debug kamesh*/
+        }
       }
     }
     /* printf("In is isbounds treatlon is: %i\n",treatlon); */
@@ -452,16 +456,20 @@ int cmor_check_monotonic(double *values,int length, char *name,int isbounds, int
     if (refaxis->climatology==0) {
       for (i=0;i<length-2;i++) {
 	/* also check that bounds do not overlap */
-	if (((values[i]<values[i+1]) && (values[i+2]<values[i+1])) || ((values[i]>values[i+1]) && (values[i+2]>values[i+1]))) {
-	  snprintf(msg,CMOR_MAX_STRING,"axis %s (table: %s) has overlapping bounds values : %lf, %lf, %lf at index: %i",name,cmor_tables[cmor_axes[axis_id].ref_table_id].table_id,values[i],values[i+1],values[i+2],i);
-	  cmor_handle_error(msg,CMOR_CRITICAL);
-	}
+        if(strcmp(CMOR_PROJECT,"SPECS")!=0){
+            if (((values[i]<values[i+1]) && (values[i+2]<values[i+1])) || ((values[i]>values[i+1]) && (values[i+2]>values[i+1]))) {
+              snprintf(msg,CMOR_MAX_STRING,"axis %s (table: %s) has overlapping bounds values : %lf, %lf, %lf at index: %i",name,cmor_tables[cmor_axes[axis_id].ref_table_id].table_id,values[i],values[i+1],values[i+2],i);
+              cmor_handle_error(msg,CMOR_CRITICAL);
+            }
+        }
       }
       for (i=0;i<length-2;i=i+2) {
 	if (values[i+1]!=values[i+2]) {
-	  snprintf(msg,CMOR_MAX_STRING,"axis %s (table: %s) has bounds values that leave gaps (index %i): %lf, %lf, %lf",name,cmor_tables[cmor_axes[axis_id].ref_table_id].table_id,i,values[i],values[i+1],values[i+2]);
-	  cmor_handle_error(msg,CMOR_WARNING);
-	}
+      if(strcmp(CMOR_PROJECT,"SPECS")!=0){
+          snprintf(msg,CMOR_MAX_STRING,"axis %s (table: %s) has bounds values that leave gaps (index %i): %lf, %lf, %lf",name,cmor_tables[cmor_axes[axis_id].ref_table_id].table_id,i,values[i],values[i+1],values[i+2]);
+          cmor_handle_error(msg,CMOR_WARNING);
+         } /*debug kamesh*/
+        }
       }
     }
   }
@@ -555,11 +563,13 @@ int cmor_check_monotonic(double *values,int length, char *name,int isbounds, int
 	cmor_handle_error(msg,CMOR_CRITICAL);
       }
       /* ok now check the monotonic again */
-      for (i=0;i<length-2;i++) {
-	if (((values[i]-values[i+1])/(values[i+1]-values[i+2]))<0.) {
-	  snprintf(msg,CMOR_MAX_STRING,"axis %s (table: %s) has non monotonic values : %lf, %lf and  %lf",name,cmor_tables[cmor_axes[axis_id].ref_table_id].table_id,values[i],values[i+1],values[i+2]);
-	  cmor_handle_error(msg,CMOR_CRITICAL);
-	}
+     for (i=0;i<length-2;i++) {
+      if(strcmp(CMOR_PROJECT,"SPECS")!=0){
+        if (((values[i]-values[i+1])/(values[i+1]-values[i+2]))<0.) {
+          snprintf(msg,CMOR_MAX_STRING,"axis %s (table: %s) has non monotonic values : %lf, %lf and  %lf",name,cmor_tables[cmor_axes[axis_id].ref_table_id].table_id,values[i],values[i+1],values[i+2]);
+          cmor_handle_error(msg,CMOR_CRITICAL);
+         }
+        } /*debug kamesh*/
       }
     }
   }
@@ -787,11 +797,11 @@ int cmor_treat_axis_values(int axis_id, double *values, int length, int n_reques
     free(tmplon);
   }
  */
-  //for (i=0;i<length;i++) printf("VAL1: %i : %f\n",i,values[i]);
+  /*for (i=0;i<length;i++) printf("VAL1: %i : %f\n",i,values[i]);*/
 
-  //i = cmor_check_monotonic(&values[0],length,name,isbounds,axis_id);
+  /*i = cmor_check_monotonic(&values[0],length,name,isbounds,axis_id);*/
 
-  //for (i=0;i<length;i++) printf("VAL2: %i : %f\n",i,values[i]);
+  /*for (i=0;i<length;i++) printf("VAL2: %i : %f\n",i,values[i]);*/
 
   /* now check for valid_min/max things except for longitude bounds */
   /* The following changed we ALWAYS check but do the wrapping only for coords,
@@ -1095,6 +1105,7 @@ int cmor_axis(int *axis_id, char *name,char *units, int length,void *coord_vals,
   cmor_add_traceback("cmor_axis");
   cmor_is_setup();
 
+/*  printf("beginning of cmor_axis %s %s %i \n",name,units,CMOR_TABLE);*/
   if (CMOR_TABLE==-1) {
     cmor_handle_error("You did not define a table yet!",CMOR_CRITICAL);
   }
@@ -1117,9 +1128,13 @@ int cmor_axis(int *axis_id, char *name,char *units, int length,void *coord_vals,
   strncpytrim(cmor_axes[cmor_naxes].id,name,CMOR_MAX_STRING);
   /* ok now look which axis is corresponding in table if not found then error */
   iref=-1;
+/*  printf("ok0 your axis is actually axis %i in table %i , %s \n",iref,CMOR_TABLE,name);*/
   cmor_trim_string(name,msg);
+/*  printf("ok your axis is actually axis %i in table %i , %s %s \n",iref,CMOR_TABLE,name);*/
+/*  printf("ok your axis is actually axis %i in table %i , %s \n",iref,CMOR_TABLE,name);*/
   for (i=0;i<=cmor_tables[CMOR_TABLE].naxes;i++) if (strcmp(cmor_tables[CMOR_TABLE].axes[i].id,msg)==0) { iref=i;break;}
   if (iref==-1) {
+/*  printf("%s \n","definition of ctmp");*/
     snprintf(ctmp,CMOR_MAX_STRING,"Could not find a matching axis for name: '%s'\n",msg);
     cmor_handle_error(ctmp,CMOR_CRITICAL);
   }
@@ -1133,13 +1148,16 @@ int cmor_axis(int *axis_id, char *name,char *units, int length,void *coord_vals,
   cmor_axes[cmor_naxes].store_in_netcdf=1;
 
   /* attributes settings */
+/*  printf("%s \n","before attribute settings calendar");*/
   if (refaxis.axis=='T') {
+/*  printf("%s \n","in attribute settings calendar");*/
     cmor_get_cur_dataset_attribute("calendar",ctmp);
     cmor_set_axis_attribute(cmor_naxes,"calendar",'c',ctmp);
     cmor_convert_time_units(units,refaxis.units,&ctmp[0]);
     strncpytrim(cmor_axes[cmor_naxes].iunits,units,CMOR_MAX_STRING);
   }
   else strcpy(ctmp,refaxis.units);
+/*  printf("%s \n","after attribute settings calendar");*/
   ierr = cmor_set_axis_attribute(cmor_naxes,"units",'c',ctmp);
   ctmp[0]=refaxis.axis; 
   ctmp[1]='\0';
