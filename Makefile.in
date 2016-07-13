@@ -46,7 +46,7 @@ LIBFILES=@LIBFILES@
 INCFILES=@INCFILES@
 
 # Temporary Files
-TMPFILES=*~ $(LIBFILES) *.mod a.out *.stb Test/*.nc Test/IPCC_Fourth_Assessment *.LOG* *.dSYM Test/IPCC Test/CMIP5 CMIP5
+TMPFILES=*~ $(LIBFILES) *.mod a.out *.stb Test/*.nc Test/IPCC_Fourth_Assessment *.LOG* *.dSYM Test/IPCC Test/CMIP5 CMIP5 build/
 DISTFILES=libcmor.a
 DEPEND= makedepend -c ${DEBUG} ${CFLAGS} ${USERCFLAGS}  ${NCCFLAGS} ${UDUNITS2FLAGS} ${UUIDFLAGS} ${ZFLAGS}
 
@@ -102,7 +102,7 @@ random_seed.o:Src/json-c/
 	${CC} -c ${DEBUG} ${MACROS} ${CFLAGS} ${USERCFLAGS}  ${NCCFLAGS} ${UDUNITS2FLAGS} ${UUIDFLAGS} ${ZFLAGS}  Src/json-c/random_seed.c
 cmor_fortran_interface.o: Src/cmor_fortran_interface.f90
 	${FC} -c ${FCFLAGS} ${USERFFLAGS} ${DEBUG} ${MACROS} Src/cmor_fortran_interface.f90
-cmor:  $(LIBFILES) @MAKEDEPPYTHON@
+cmor:  $(LIBFILES) 
 	@ar crv $(LIBNAME) $(LIBFILES) 
 	@ranlib $(LIBNAME)
 clean:
@@ -111,7 +111,7 @@ clean:
 distclean: clean
 	@echo "Completely cleaning [$(WHEREAMI)]..."
 	@rm -f $(DISTFILES)
-install: cmor
+install: cmor @MAKEDEPPYTHON@
 	mkdir -p ${PREFIX}/lib
 	mkdir -p ${PREFIX}/include
 	mkdir -p ${PREFIX}/include/cdTime
