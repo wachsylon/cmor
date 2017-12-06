@@ -56,6 +56,7 @@ class JSONAction(argparse.Action):
         if not jsonobject:
             raise argparse.ArgumentTypeError(
                 'JSONAction:{0} is file not a valid JSON file'.format(fn))
+        f.close()
         setattr(namespace, self.dest, values)
 
 
@@ -423,6 +424,7 @@ def main():
     try:
         process = checkCMIP6(args)
         process.ControlVocab()
+        args.infile.close()
     except KeyboardInterrupt:
         print bcolors.FAIL
         print "!!!!!!!!!!!!!!!!!!!!!!!!!"
