@@ -353,9 +353,12 @@ int strncpytrim(char *out, char *in, int max)
 
     k = n - 1;
 
-    while ((in[k] == ' ') && (k > 0)) {
-        k--;
+    if( k > 0) {
+        while (in[k] == ' ') {
+            k--;
+        }
     }
+
 
     for (i = j; i <= k; i++) {
         out[i - j] = in[i];

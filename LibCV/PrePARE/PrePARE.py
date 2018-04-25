@@ -455,10 +455,10 @@ class checkCMIP6(object):
             calendar = "gregorian"
             timeunits = "days since ?"
 
-        # Get first and last time bounds
+        # Get first and last time bounds only used for climatlogy filename.
         try:
-            if 'bounds' in infile.variables['time'].__dict__.keys():
-                bndsvar = infile.variables['time'].__dict__['bounds']
+            if 'climatology' in infile.variables['time'].__dict__.keys():
+                bndsvar = infile.variables['time'].__dict__['climatology']
                 startimebnds = infile.variables[bndsvar][0][0]
                 endtimebnds = infile.variables[bndsvar][-1][1]
             else:
@@ -512,18 +512,8 @@ class checkCMIP6(object):
                                                calendar,
                                                timeunits,
                                                filename)
-        # -------------------------------------------------------------------
-        # Check variable attributes
-        # -------------------------------------------------------------------
-        fn = os.path.basename(str(infile).split('\'')[1])
-        err += cmip6_cv.check_filename(
-            table,
-            varid,
-            calendar,
-            timeunits,
-            fn)
 
-        if (err != 0) or (cmip6_cv.get_CV_Error() == 1):
+        if (self.errors != 0) or (cmip6_cv.get_CV_Error() == 1):
             self.cv_error = True
 
         if 'branch_time_in_child' in self.dictGbl.keys():
@@ -628,7 +618,7 @@ class checkCMIP6(object):
                         if table_value != file_value:
                             file_value = False
                     else:
-                        if abs(1 - (table_value / file_value)) < 0.00001:
+                        if abs(table_value - file_value) < 0.00001*table_value:
                             table_value = file_value
                 if key == "cell_methods":
                     idx = file_value.find(" (")
