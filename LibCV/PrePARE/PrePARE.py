@@ -456,17 +456,16 @@ class checkCMIP6(object):
             timeunits = "days since ?"
 
         # Get first and last time bounds only used for climatlogy filename.
+        startimebnds = 0
+        endtimebnds = 0
         try:
             if 'climatology' in infile.variables['time'].__dict__.keys():
                 bndsvar = infile.variables['time'].__dict__['climatology']
                 startimebnds = infile.variables[bndsvar][0][0]
                 endtimebnds = infile.variables[bndsvar][-1][1]
-            else:
-                startimebnds = infile.variables['time_bnds'][0][0]
-                endtimebnds = infile.variables['time_bnds'][-1][1]
-        except BaseException:
-            startimebnds = 0
-            endtimebnds = 0
+        except:
+            pass
+
         # Get first and last time steps
         try:
             startime = infile.variables['time'][0]
@@ -474,6 +473,7 @@ class checkCMIP6(object):
         except BaseException:
             startime = 0
             endtime = 0
+
         # -------------------------------------------------------------------
         #  Distinguish similar CMOR entries with the same out_name if exist
         # -------------------------------------------------------------------
@@ -514,6 +514,17 @@ class checkCMIP6(object):
                                                filename)
 
         if (self.errors != 0) or (cmip6_cv.get_CV_Error() == 1):
+            is_clim = self.is_climatology(**{'infile': infile,
+                                             'variable': variable,
+                                             'filename': filename})
+
+            if is_clim and ((startimebnds == 0) and (endtimebnds == 0)):
+                print BCOLORS.FAIL
+                print "====================================================================================="
+                print "You are writing a climatology variable, but the \'climatology\' time attribute is missing."
+                print "====================================================================================="
+                print BCOLORS.ENDC
+
             self.cv_error = True
 
         if 'branch_time_in_child' in self.dictGbl.keys():
@@ -618,7 +629,7 @@ class checkCMIP6(object):
                         if table_value != file_value:
                             file_value = False
                     else:
-                        if abs(table_value - file_value) < 0.00001*table_value:
+                        if abs(table_value - file_value) < 0.00001 * abs(table_value):
                             table_value = file_value
                 if key == "cell_methods":
                     idx = file_value.find(" (")

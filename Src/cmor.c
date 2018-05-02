@@ -112,7 +112,7 @@ int bAppendMode = FALSE;
 volatile sig_atomic_t stop = 0;
 
 /**************************************************************************/
-/*                cmor_mkdir()                                            */
+/*                terminate ()                                            */
 /**************************************************************************/
 void terminate(int signal)
 {
@@ -623,10 +623,10 @@ void cmor_handle_error(char error_msg[CMOR_MAX_STRING], int level)
         exit(1);
 
     }
+    fflush(output_logfile);
     if ((CMOR_MODE == CMOR_EXIT_ON_WARNING) || (level == CMOR_CRITICAL)) {
         kill(getpid(), SIGTERM);
     }
-    fflush(output_logfile);
 }
 
 void cmor_handle_error_var(char error_msg[CMOR_MAX_STRING], int level,
