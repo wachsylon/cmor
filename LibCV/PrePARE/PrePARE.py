@@ -164,7 +164,7 @@ class FilterCollection(object):
     indicating to match (i.e., include) or non-match (i.e., exclude) the corresponding expression.
 
     """
-    if sys.version_info < (3, 0):
+    if sys.version_info < (3, 7):
         FILTER_TYPES = (str, re._pattern_type)
     else:
         FILTER_TYPES = (str, re.Pattern)
@@ -309,17 +309,17 @@ class checkCMIP6(object):
     @staticmethod
     def has_27_pressure_levels(infile, **kwargs):
         dim = [d for d in list(infile.dimensions.keys()) if 'plev' in d]
-        return True if len(dim) == 1 and infile.dimensions[dim[0]] == 27 else False
+        return True if len(dim) == 1 and infile.dimensions[dim[0]].size == 27 else False
 
     @staticmethod
     def has_7_pressure_levels(infile, **kwargs):
         dim = [d for d in list(infile.dimensions.keys()) if 'plev' in d]
-        return True if len(dim) == 1 and infile.dimensions[dim[0]] == 7 else False
+        return True if len(dim) == 1 and infile.dimensions[dim[0]].size == 7 else False
 
     @staticmethod
     def has_4_pressure_levels(infile, **kwargs):
         dim = [d for d in list(infile.dimensions.keys()) if 'plev' in d]
-        return True if len(dim) == 1 and infile.dimensions[dim[0]] == 4 else False
+        return True if len(dim) == 1 and infile.dimensions[dim[0]].size == 4 else False
 
     @staticmethod
     def has_land_in_cell_methods(infile, variable, **kwargs):
@@ -394,6 +394,7 @@ class checkCMIP6(object):
                                           'filename': filename}):
                     # If test successfull, the CMOR entry to consider is given by the test
                     variable_cmor_entry = cmor_entry
+                    break
                 else:
                     # If not, CMOR entry to consider is the variable from filename or from input command-line
                     variable_cmor_entry = variable
@@ -565,7 +566,7 @@ class checkCMIP6(object):
             if key == "comment":
                 continue
             if key == "cell_measures":
-                if cv_attrs[key].find("OPT") != -1 or cv_attrs[key].find("MODEL") != -1:
+                if " OR " in cv_attrs[key] or "OPT" in cv_attrs[key] or "MODEL" in cv_attrs[key] or "UGRID" in cv_attrs[key]:
                     continue
             # Is this attribute in file?
             if key in list(self.dictVar.keys()):
@@ -595,19 +596,18 @@ class checkCMIP6(object):
                         file_value = file_value[:idx]
                         table_value = table_value[:idx]
                 if key == "cell_measures":
-                    pattern = re.compile('(?P<param>[\w.-]+): (?P<val1>[\w.-]+) OR (?P<val2>[\w.-]+)')
+                    # Check if area and volume values from the table's cell_measures are found in the file's external_variables
+                    pattern = re.compile('(?:area|volume): (\w+)')
                     values = re.findall(pattern, table_value)
-                    table_values = [""]  # Empty string is allowed in case of useless attribute
-                    if values:
-                        tmp = dict()
-                        for param, val1, val2 in values:
-                            tmp[param] = [str('{}: {}'.format(param, val1)), str('{}: {}'.format(param, val2))]
-                        table_values.extend([' '.join(i) for i in list(itertools.product(*list(tmp.values())))])
-                        if str(file_value) not in list(map(str, table_values)):
+                    for v in values:
+                        if not re.search(r"\b{}\b".format(v), self.dictGbl['external_variables']):
                             print(BCOLORS.FAIL)
                             print("=====================================================================================")
-                            print("Your file contains \"" + key + "\":\"" + str(file_value) + "\" and")
-                            print("CMIP6 tables requires \"" + key + "\":\"" + str(table_value) + "\".")
+                            print("Your file contains external_variables = \"" + self.dictGbl['external_variables'] + "\", and")
+                            if len(values) == 2:
+                                print("CMIP6 tables requires \"" + values[0] + "\" and \"" + values[1] + "\" in external_variables.")
+                            else:
+                                print("CMIP6 tables requires \"" + values[0] + "\" in external_variables.")
                             print("=====================================================================================")
                             print(BCOLORS.ENDC)
                             self.errors += 1
@@ -631,6 +631,15 @@ class checkCMIP6(object):
                 print(BCOLORS.FAIL)
                 print("=====================================================================================")
                 print("CMIP6 variable " + variable + " requires \"" + key + "\":\"" + str(table_value) + "\".")
+                print("=====================================================================================")
+                print(BCOLORS.ENDC)
+                self.errors += 1
+        # Check if cell_measures is defined in the file but not in the table
+        if "cell_measures" in list(self.dictVar.keys()) and "cell_measures" not in cv_attrs:
+                print(BCOLORS.FAIL)
+                print("=====================================================================================")
+                print("Your file contains \"cell_measures\":\"" + str(self.dictVar["cell_measures"]) + "\" but")
+                print("CMIP6 tables do not define \"cell_measures\".")
                 print("=====================================================================================")
                 print(BCOLORS.ENDC)
                 self.errors += 1
