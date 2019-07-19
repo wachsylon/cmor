@@ -13,11 +13,6 @@ double time_bnds[];
     time[0] = (it - 0.5) * 0.25;
     time_bnds[0] = (it - 1) * 0.25;
     time_bnds[1] = it * 0.25;
-
-    time[0] = it;
-    time_bnds[0] = it;
-    time_bnds[1] = it + 1;
-
 }
 
 #include "reader_2D_3D.h"
@@ -81,6 +76,7 @@ void loopRoutine(char *times, char *returnvalue)
     double delta_lat = 10.;
     char id[CMOR_MAX_STRING];
     double tmpf = 0.;
+    int wavelength_found = 0;
 
     int exit_mode = CMOR_EXIT_ON_MAJOR;
     j = ( times ) ? CMOR_APPEND : CMOR_REPLACE;
@@ -98,10 +94,10 @@ void loopRoutine(char *times, char *returnvalue)
         read_time(i, &Time[i-k*ntimes], &bnds_time[2 * (i-k*ntimes)]);
     
     if(times)
-        ierr = cmor_axis(&axes_ids[0], "time1", "months since 1980", NULL, NULL, 'd',
+        ierr = cmor_axis(&axes_ids[0], "time1", "days since 1980", NULL, NULL, 'd',
                 NULL, 0, NULL);
     else
-        ierr = cmor_axis(&axes_ids[0], "time1", "months since 1980", ntimes, &Time[0], 'd',
+        ierr = cmor_axis(&axes_ids[0], "time1", "days since 1980", ntimes, &Time[0], 'd',
                 NULL, 0, NULL);
 
 
@@ -118,12 +114,12 @@ void loopRoutine(char *times, char *returnvalue)
     0.92764596935028};
     double alev_bnds[5] = {1, 0.992299973964691, 0.97299998998642, 0.944911191727007, 0.910380746973552};
 
-    ierr = cmor_axis(&axes_ids[3], (char *) "alternate_hybrid_sigma", (char *) "", lev,
+    ierr = cmor_axis(&axes_ids[3], (char *) "standard_hybrid_sigma", (char *) "", lev,
                       alev_val, 'd', alev_bnds, 1, NULL);
 
     double p0[1] = {101325.0};
-    double ap_val[4] = {0, 0, 36.0317993164062, 171.845031738281};
-    double ap_bnds[5] = {  0, 0, 0,  72.0635986328125, 271.62646484375};
+    double a_val[4] = {0, 0, 36.0317993164062, 171.845031738281};
+    double a_bnds[5] = {  0, 0, 0,  72.0635986328125, 271.62646484375};
     double b_val[4] = {0, 0, 36.0317993164062, 171.845031738281};
     double b_bnds[5] = {  0, 0,  0, 72.0635986328125, 271.62646484375};
 
@@ -133,20 +129,20 @@ void loopRoutine(char *times, char *returnvalue)
     ierr = cmor_zfactor(&zfactor_id, axes_ids[3], (char *) "p0", (char *) "Pa", 0, 0, 'd', (void *) p0, NULL);
     ierr = cmor_zfactor(&zfactor_id, axes_ids[3], (char *) "b", (char *) "", 1, &lev_id_array[0], 'd',
                                  (void *) b_val, (void *) b_bnds);
-    ierr = cmor_zfactor(&zfactor_id, axes_ids[3], (char *) "ap", (char *) "Pa", 1, &lev_id_array[0], 'd',
-                                 (void *) ap_val, (void *) ap_bnds);
+    ierr = cmor_zfactor(&zfactor_id, axes_ids[3], (char *) "a", (char *) "", 1, &lev_id_array[0], 'd',
+                                 (void *) a_val, (void *) a_bnds);
     ierr = cmor_zfactor(&zfactor_id, axes_ids[3], (char *) "ps1", (char *) "Pa", 3,
                                  axes_ids, 'd', NULL, NULL);
 
     ierr =
-      cmor_variable(&myvars[0], "ta", "K", 4, axes_ids, 'd', NULL,
-                    &tolerance, "", "ta", "no history", "no future");
+      cmor_variable(&myvars[0], "ec550aer", "m-1", 4, axes_ids, 'd', NULL,
+                    &tolerance, "", "ec550aer", "no history", "no future");
 
     for (i = 0; i < ntimes; i++) {
         printf("Test code: writing time: %i of %i\n", i + 1, ntimes);
 
         printf("Test code: 3d\n");
-        read_3d_input_files(i, "T", &data3d[0], lat, lon, lev);
+        read_3d_input_files(i, "CLOUD", &data3d[0], lat, lon, lev);
         read_2d_input_files(i, "PSURF", &data2d[0], lat, lon);
         //for(j=0;j<10;j++) printf("Test code: %i out of %i : %lf\n",j,9,data2d[j]);
         printf("var id: %i\n", myvars[0]);
@@ -159,6 +155,17 @@ void loopRoutine(char *times, char *returnvalue)
         }
     }
     printf("ok loop done\n");
+
+    // Make sure the wavelength dimension is included
+    for(i = 0; i < cmor_vars[myvars[0]].ndims; ++i){
+        if(strcmp(cmor_axes[cmor_vars[myvars[0]].singleton_ids[i]].id, "wavelength") == 0)
+            wavelength_found++;
+    }
+    if(wavelength_found != 1){
+        fprintf(stderr, "Error finding wavelength dimension.\n");
+        exit(1);
+    }
+
     ierr = cmor_close_variable(myvars[0], returnvalue, NULL);
 }
 
