@@ -162,7 +162,7 @@ void loopRoutine(char *times, char *returnvalue)
             wavelength_found++;
     }
     if(wavelength_found != 1){
-        fprintf(stderr, "Error finding wavelength dimension.\n");
+        fprintf(stderr, "An error occurred while finding the wavelength dimension.\n");
         exit(1);
     }
 
